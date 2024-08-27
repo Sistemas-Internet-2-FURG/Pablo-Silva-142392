@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cadastro</title>
+</head>
+<body>
+    <h1>Cadastro</h1>
+    <p>Cadastre-se para usufruir de todo o poder de nossa plataforma</p>
+    <form action="/cadastro" method="POST">
+        <label for="login">Login:</label>
+        <input type="text" id="login" name="login" required><br><br>
+        <label for="senha">Senha:</label>
+        <input type="password" id="senha" name="senha" required><br><br>
+        <label for="confirmarSenha">Confirmar Senha:</label>
+        <input type="password" id="confirmarSenha" name="confirmarSenha" required oninput="checkPasswordMatch()"><br><br>
+        <p id="error" style="color: red;"></p>
+        <script>
+            function checkPasswordMatch() {
+                var senha = document.getElementById("senha").value;
+                var confirmarSenha = document.getElementById("confirmarSenha").value;
+                var error = document.getElementById("error");
+                
+                if (senha === confirmarSenha) {
+                    error.innerHTML = "";
+                    document.getElementById("submitBtn").disabled = false;
+                } else {
+                    error.innerHTML = "As senhas não coincidem";
+                    document.getElementById("submitBtn").disabled = true;
+                }
+            }
+        </script>
+        <input id="submitBtn" type="submit" value="Cadastrar">
+    </form>
+</body>
+</html>

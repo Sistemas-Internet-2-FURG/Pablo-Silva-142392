@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .hello-user {
+            color: red;
+            font-size: larger;
+        }
+
+        .login-btn {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            color: blue;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Teste flask</h1>
+    </div>    
+    <hr>
+    {% if username %}
+        <p>Olá <b class="hello-user">{{ username }}</b> nós não vivemos em {{ Planeta }}</p>
+        <form action="/logout" method="GET">
+            <button type="submit">Logout</button>
+        </form>
+
+        <form action="/delete" method="POST">
+            <button type="submit">Deletar conta</button>
+        </form>
+    {% endif %}
+
+    {% if not username %}
+        <form action="/login" method="POST">
+            <p>Você não está em uma conta!</p>
+            <p>Clique<button class="login-btn" type="submit">aqui</button>para se logar</p>
+        </form>
+    {% endif %}
+
+    <div>
+        <h2>Lista de usuários</h2>
+        <ul>
+            {% for user in users %}
+                <li>{{ user }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
