@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, redirect
+from flask import *
 from flask_session import Session
 import sqlite3
 
