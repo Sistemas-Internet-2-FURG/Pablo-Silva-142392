@@ -14,9 +14,11 @@
         {% for movie in movies %}
             <li>
                 <h2>{{ movie.title }} ({{ movie.release_date }})</h2>
-                <p><strong>Sinopse:</strong> {{ movie.overview }}</p>
+                <p><strong>Sinopse:</strong> {{ movie.overview or 'Sinopse não disponível' }}</p>
                 <p><strong>Nota:</strong> {{ movie.vote_average }}</p>
                 <p><strong>Popularidade:</strong> {{ movie.popularity }}</p>
+                <p><strong>Diretores:</strong> {{ movie.directors | join(', ') }}</p>
+                <p><strong>Score:</strong> {{ movie.score }}</p>
                 {% if movie.poster_path %}
                     <img src="https://image.tmdb.org/t/p/w200{{ movie.poster_path }}" alt="{{ movie.title }}">
                 {% endif %}

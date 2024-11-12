@@ -217,6 +217,15 @@ def get_movies():
         response = requests.get(url)
         if response.status_code == 200:
             movies = response.json().get('results', [])
+            for movie in movies:
+                movie_id = movie['id']
+                details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&append_to_response=credits"
+                details_response = requests.get(details_url)
+                if details_response.status_code == 200:
+                    details = details_response.json()
+                    directors = [member['name'] for member in details['credits']['crew'] if member['job'] == 'Director']
+                    movie['directors'] = directors
+                    movie['score'] = details.get('vote_average', 'N/A')
             return render_template("movies.html", movies=movies)
         else:
             return "Erro ao buscar filmes!", 500
