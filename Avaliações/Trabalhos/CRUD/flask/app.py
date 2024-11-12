@@ -2,6 +2,7 @@ from flask import *
 from flask_session import Session
 import sqlite3
 from itsdangerous import URLSafeTimedSerializer
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta'
@@ -9,6 +10,7 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
+TMDB_API_KEY = '489144e396e06c019e8c6590578e15db'
 s = URLSafeTimedSerializer(app.secret_key)
 
 def init_db():
@@ -18,8 +20,16 @@ def init_db():
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        login TEXT UNIQUE NOT NULL,
-        senha TEXT NOT NULL
+        login TEXT UNIQUE NOT NULL
+    )
+    ''')
+    
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS senhas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        senha TEXT NOT NULL,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
     )
     ''')
     
@@ -29,12 +39,14 @@ def init_db():
 init_db()
 
 # Funções CRUD
-
 def salvar_usuario(login, senha):
     conn = sqlite3.connect('banco.db')
     cursor = conn.cursor()
     
-    cursor.execute('INSERT INTO usuarios (login, senha) VALUES (?, ?)', (login, senha))
+    cursor.execute('INSERT INTO usuarios (login) VALUES (?)', (login,))
+    usuario_id = cursor.lastrowid
+    
+    cursor.execute('INSERT INTO senhas (usuario_id, senha) VALUES (?, ?)', (usuario_id, senha))
     
     conn.commit()
     conn.close()
@@ -43,7 +55,10 @@ def carregar_usuarios():
     conn = sqlite3.connect('banco.db')
     cursor = conn.cursor()
     
-    cursor.execute('SELECT login, senha FROM usuarios')
+    cursor.execute('''
+    SELECT u.login, s.senha FROM usuarios u
+    JOIN senhas s ON u.id = s.usuario_id
+    ''')
     usuarios = {row[0]: row[1] for row in cursor.fetchall()}
     
     conn.close()
@@ -56,7 +71,11 @@ def usuario_existe(login, senha):
     conn = sqlite3.connect('banco.db')
     cursor = conn.cursor()
     
-    cursor.execute('SELECT id, login, senha FROM usuarios WHERE login = ? AND senha = ?', (login, senha))
+    cursor.execute('''
+    SELECT u.id, u.login, s.senha FROM usuarios u
+    JOIN senhas s ON u.id = s.usuario_id
+    WHERE u.login = ? AND s.senha = ?
+    ''', (login, senha))
     usuario = cursor.fetchone()
     
     conn.close()
@@ -189,6 +208,20 @@ def index():
 @app.route("/about")
 def about():
     return render_template("about.html")
+
+@app.route("/movies", methods=['GET'])
+def get_movies():
+    query = request.args.get('query', '')
+    if query:
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            movies = response.json().get('results', [])
+            return render_template("movies.html", movies=movies)
+        else:
+            return "Erro ao buscar filmes!", 500
+    else:
+        return render_template("movies.html", movies=[])
 
 if __name__ == "__main__":
     app.run(debug=True)
