@@ -1,12 +1,15 @@
 from flask import *
 from flask_session import Session
 import sqlite3
+from itsdangerous import URLSafeTimedSerializer
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta'
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+
+s = URLSafeTimedSerializer(app.secret_key)
 
 def init_db():
     conn = sqlite3.connect('banco.db')
@@ -92,11 +95,12 @@ def login():
     if request.method == 'POST':
         login = request.form.get('login')
         senha = request.form.get('senha')
-        if not usuario_existe(login, senha):
+        usuario = usuario_existe(login, senha)
+        if not usuario:
             return render_template("login.html", error="Usuário ou senha incorretos!")
-        elif usuario_existe(login, senha):
-            session['username'] = login
-            return redirect("/")
+        else:
+            token = s.dumps(login, salt='login-token')
+            return redirect(f"/?token={token}")
     return render_template("login.html")
 
 @app.route("/logout")
@@ -167,6 +171,13 @@ def cadastro():
 
 @app.route("/", methods=['GET', 'POST'])
 def index():
+    token = request.args.get('token')
+    if token:
+        try:
+            login = s.loads(token, salt='login-token', max_age=3600)
+            session['username'] = login
+        except:
+            return redirect("/login")
     if not 'username' in session:
         return redirect("/login")
         print('Usuário não logado')
