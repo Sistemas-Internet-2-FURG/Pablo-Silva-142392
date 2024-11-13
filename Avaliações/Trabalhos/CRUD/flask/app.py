@@ -122,6 +122,19 @@ def login():
             return redirect(f"/?token={token}")
     return render_template("login.html")
 
+@app.route("/api/login", methods=['POST'])
+def api_login():
+    data = request.json
+    login = data.get('login')
+    senha = data.get('senha')
+    usuario = usuario_existe(login, senha)
+    if not usuario:
+        return jsonify({"error": "Usuário ou senha incorretos!"}), 401
+    else:
+        session['username'] = login  # Configura a sessão com o nome de usuário
+        token = s.dumps(login, salt='login-token')
+        return jsonify({"token": token})
+
 @app.route("/logout")
 def logout():
     if 'username' not in session:
@@ -129,6 +142,11 @@ def logout():
     else:
         session.pop('username', None)
     return redirect("/about")
+
+@app.route("/api/logout", methods=['POST'])
+def api_logout():
+    session.pop('username', None)
+    return jsonify({"message": "Logout realizado com sucesso!"})
 
 @app.route("/delete", methods=['GET', 'POST'])
 def delete():
@@ -176,6 +194,34 @@ def delete():
     
     return render_template("delete.html")
 
+@app.route("/api/delete_account", methods=['POST'])
+def api_delete_account():
+    data = request.json
+    login = data.get('login')
+    senha = data.get('senha')
+    
+    if not login or not senha:
+        return jsonify({"error": "Login e senha são obrigatórios!"}), 400
+    
+    usuario = usuario_existe(login, senha)
+    
+    if not usuario:
+        return jsonify({"error": "Usuário ou senha incorretos!"}), 401
+    
+    user_id = usuario['id']
+    
+    conn = sqlite3.connect('banco.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM usuarios WHERE id = ? AND login = ?', (user_id, login))
+    cursor.execute('DELETE FROM senhas WHERE usuario_id = ?', (user_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    session.pop('username', None)
+    return jsonify({"message": "Conta deletada com sucesso!"}), 200
+
 @app.route("/cadastro", methods=['GET', 'POST'])
 def cadastro():
     if request.method == 'POST':
@@ -187,6 +233,17 @@ def cadastro():
         else:
             return "Usuário já existe!", 400
     return render_template("cadastro.html")
+
+@app.route("/api/cadastro", methods=['POST'])
+def api_cadastro():
+    data = request.json
+    login = data.get('login')
+    senha = data.get('senha')
+    if not usuario_existe(login, senha):
+        salvar_usuario(login, senha)
+        return jsonify({"message": "Usuário cadastrado com sucesso!"}), 201
+    else:
+        return jsonify({"error": "Usuário já existe!"}), 400
 
 @app.route("/", methods=['GET', 'POST'])
 def index():
@@ -232,5 +289,45 @@ def get_movies():
     else:
         return render_template("movies.html", movies=[])
 
+@app.route("/api/movies", methods=['GET'])
+def api_get_movies():
+    query = request.args.get('query', '')
+    if query:
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            movies = response.json().get('results', [])
+            for movie in movies:
+                movie_id = movie['id']
+                details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&append_to_response=credits"
+                details_response = requests.get(details_url)
+                if details_response.status_code == 200:
+                    details = details_response.json()
+                    directors = [member['name'] for member in details['credits']['crew'] if member['job'] == 'Director']
+                    movie['directors'] = directors
+                    movie['score'] = details.get('vote_average', 'N/A')
+            return jsonify(movies)
+        else:
+            return jsonify({"error": "Erro ao buscar filmes!"}), 500
+    else:
+        return jsonify([])
+
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+####### Exemplo de uso API #######
+# Cadastro de usuário
+# curl -X POST http://localhost:5000/api/cadastro -H "Content-Type: application/json" -d '{"login":"jorge", "senha":"loko123"}'
+
+# Login
+# curl -X POST http://localhost:5000/api/login -H "Content-Type: application/json" -d '{"login":"jorge", "senha":"loko123"}'
+
+# Logout
+# curl -X POST http://localhost:5000/api/logout
+
+# Busca de filmes
+# curl -X GET "http://localhost:5000/api/movies?query=matrix"
+
+# Deletar conta
+# curl -X POST http://localhost:5000/api/delete_account -H "Content-Type: application/json" -d '{"login":"jorge", "senha":"loko123"}'
